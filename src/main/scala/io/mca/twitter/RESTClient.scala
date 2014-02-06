@@ -18,6 +18,8 @@ import spray.httpx.encoding.{ Gzip, Deflate }
 
 import io.mca.oauth._
 
+case class Credentials(consumerKey: String, consumerSecret: String,
+                       token: String, tokenSecret: String)
 case class Tweet(id: Long, text: String, source: String, created_at: String, user: User)
 case class User(id: Long, screen_name: String, name: String)
 object TweetJsonProtocol extends DefaultJsonProtocol {
@@ -25,17 +27,15 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
   implicit val tweetFormat = jsonFormat5(Tweet)
 }
 
-class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
+class RESTClient(credentials: Credentials) extends Actor with OAuthClient {
   import context.dispatcher
   import TweetJsonProtocol._
   implicit val timeout = Timeout(5.seconds)
 
-  val consumerKey = ""
-  val consumerSecret = ""
-  val token = ""
-  val tokenSecret = ""
-
-  val timelineUri = "https://api.twitter.com/1.1/statuses/home_timeline.json"
+  val consumerKey = credentials.consumerKey
+  val consumerSecret = credentials.consumerSecret
+  val token = credentials.token
+  val tokenSecret = credentials.tokenSecret
 
   def pipeline(authHeader: String): HttpRequest => Future[Seq[Tweet]] = {
     (addHeader("Authorization", authHeader)
@@ -46,15 +46,13 @@ class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
       )
   }
 
-  def timeline = context.actorSelection(timelinePath)
-
   def receive = {
     case request: HttpRequest =>
       val method = request.method.name
       val baseUri = request.uri.scheme + ":" + request.uri.authority + request.uri.path
       val authHeader = oAuthHeader(method, baseUri, Seq(), token, tokenSecret)
 
-      pipeline(authHeader)(request) pipeToSelection timeline
+      pipeline(authHeader)(request) pipeTo sender
 
     case x => println("Unknown message: " + x)
   }
