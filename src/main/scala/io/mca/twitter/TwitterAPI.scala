@@ -1,18 +1,15 @@
 package io.mca.twitter
 
-import java.util.{ UUID, Date }
 
 import scala.concurrent.duration._
 import scala.concurrent._
 
-import akka.io.IO
 import akka.util.Timeout
 import akka.actor._
-import akka.pattern.{ ask, pipe }
+import akka.pattern.pipe
 
 import spray.http._
 import spray.json.DefaultJsonProtocol
-import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.httpx.encoding.{ Gzip, Deflate }
 
@@ -26,8 +23,6 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
 }
 
 class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
-  import context.dispatcher
-  import TweetJsonProtocol._
   implicit val timeout = Timeout(5.seconds)
 
   val consumerKey = ""
