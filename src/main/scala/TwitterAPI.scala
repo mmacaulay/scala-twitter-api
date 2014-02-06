@@ -16,7 +16,7 @@ import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.httpx.encoding.{ Gzip, Deflate }
 
-import oauth._
+import io.mca.oauth._
 
 case class Tweet(id: Long, text: String, source: String, created_at: String, user: User)
 case class User(id: Long, screen_name: String, name: String)
