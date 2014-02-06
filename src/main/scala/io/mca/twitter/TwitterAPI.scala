@@ -1,15 +1,18 @@
 package io.mca.twitter
 
+import java.util.{ UUID, Date }
 
 import scala.concurrent.duration._
 import scala.concurrent._
 
+import akka.io.IO
 import akka.util.Timeout
 import akka.actor._
-import akka.pattern.pipe
+import akka.pattern.{ ask, pipe }
 
 import spray.http._
 import spray.json.DefaultJsonProtocol
+import spray.httpx.SprayJsonSupport._
 import spray.client.pipelining._
 import spray.httpx.encoding.{ Gzip, Deflate }
 
@@ -23,13 +26,15 @@ object TweetJsonProtocol extends DefaultJsonProtocol {
 }
 
 class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
+  import context.dispatcher
+  import TweetJsonProtocol._
   implicit val timeout = Timeout(5.seconds)
 
   val consumerKey = ""
   val consumerSecret = ""
   val token = ""
   val tokenSecret = ""
-  
+
   val timelineUri = "https://api.twitter.com/1.1/statuses/home_timeline.json"
 
   def pipeline(authHeader: String): HttpRequest => Future[Seq[Tweet]] = {
@@ -38,7 +43,7 @@ class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
       ~> sendReceive
       ~> decode(Deflate)
       ~> unmarshal[Seq[Tweet]]
-    )
+      )
   }
 
   def timeline = context.actorSelection(timelinePath)
@@ -54,5 +59,4 @@ class TwitterAPI(timelinePath: ActorPath) extends Actor with OAuthClient {
     case x => println("Unknown message: " + x)
   }
 }
-
 
