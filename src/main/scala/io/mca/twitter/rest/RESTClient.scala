@@ -36,7 +36,6 @@ trait RESTApiRequest {
   }
 }
 
-case class Credentials(token: String, tokenSecret: String)
 case class Tweet(id: Long, text: String, source: String, created_at: String, user: User)
 case class User(id: Long, screen_name: String, name: String)
 object TweetJsonProtocol extends DefaultJsonProtocol {
