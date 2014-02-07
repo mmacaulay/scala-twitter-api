@@ -67,13 +67,6 @@ class RESTClient(val consumerKey: String, val consumerSecret: String) extends Ac
     case request: RESTApiRequest =>
       val authHeader = oAuthHeader(request.httpMethod, request.resource, request.params, request.token, request.tokenSecret)
       pipeline(authHeader)(request.httpRequest) pipeTo sender
-//
-//    case request: HttpRequest =>
-//      val method = request.method.name
-//      val baseUri = request.uri.scheme + ":" + request.uri.authority + request.uri.path
-//      val authHeader = oAuthHeader(method, baseUri, Seq(), token, tokenSecret)
-//
-//      pipeline(authHeader)(request) pipeTo sender
 
     case x => println("Unknown message: " + x)
   }
