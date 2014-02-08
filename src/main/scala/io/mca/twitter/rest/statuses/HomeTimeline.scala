@@ -1,4 +1,6 @@
-package io.mca.twitter.rest
+package io.mca.twitter.rest.statuses
+
+import io.mca.twitter.rest.RESTApiRequest
 
 // https://dev.twitter.com/docs/api/1.1/get/statuses/home_timeline
 case class HomeTimeline(token: String, tokenSecret: String, params: Seq[(String, String)] = Seq())

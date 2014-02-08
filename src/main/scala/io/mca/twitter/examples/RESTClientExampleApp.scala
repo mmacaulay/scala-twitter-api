@@ -4,11 +4,12 @@ import scala.concurrent.duration._
 
 import akka.pattern.{ ask, pipe }
 import akka.actor.{Props, Actor, ActorSystem}
-import io.mca.twitter.rest.{HomeTimeline, RESTClient}
+import io.mca.twitter.rest.{Tweet, RESTClient}
 import akka.util.Timeout
+import io.mca.twitter.rest.statuses.HomeTimeline
 
-object HomeTimelineApp extends App {
-  val system = ActorSystem("HomeTimelineApp")
+object RESTClientExampleApp extends App {
+  val system = ActorSystem("RESTClientExampleApp")
 
   val consumerKey = args(0)
   val consumerSecret = args(1)
@@ -17,10 +18,12 @@ object HomeTimelineApp extends App {
 
   val worker = system.actorOf(Props(new Worker(consumerKey, consumerSecret, token, tokenSecret)))
   Thread.sleep(2000)
-  worker ! Work
+  worker ! Start
 }
 
-case object Work
+sealed trait WorkerMessage
+case object Start extends WorkerMessage
+case class Timeline(tweets: Seq[Tweet]) extends WorkerMessage
 
 class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSecret: String)
   extends Actor {
@@ -30,9 +33,18 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
   val client = context.actorOf(RESTClient(consumerKey, consumerSecret), name = "restclient")
 
   def receive = {
-    case Work =>
-      client ? HomeTimeline(token, tokenSecret) pipeTo self
+    case w: WorkerMessage =>
+      w match {
+        case Start =>
+          client.ask(HomeTimeline(token, tokenSecret))
+            .mapTo[Seq[Tweet]]
+            .map(Timeline)
+            .pipeTo(self)
 
-    case x => println("Received " + x)
+        case Timeline(tweets) =>
+          tweets.map(println)
+      }
+
+    case x => println("Received unexpected " + x)
   }
 }
