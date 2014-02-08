@@ -2,6 +2,7 @@ package io.mca.twitter.rest
 
 import java.util.{ UUID, Date }
 
+import scala.Any
 import scala.concurrent.duration._
 import scala.concurrent._
 
@@ -33,6 +34,12 @@ trait RESTApiRequest {
     }
     val uri = Uri(resource).withQuery(params: _*)
     HttpRequest(method, uri)
+  }
+
+  def parameterize(p: Seq[(String, Option[Any])]): Seq[(String, String)] = {
+    p.flatMap { case(x, y) =>
+      y.map(yp => (x, yp.toString))
+    }
   }
 }
 
