@@ -6,7 +6,7 @@ import akka.pattern.{ ask, pipe }
 import akka.actor.{Props, Actor, ActorSystem}
 import io.mca.twitter.rest.{Tweet, RESTClient}
 import akka.util.Timeout
-import io.mca.twitter.rest.statuses.HomeTimeline
+import io.mca.twitter.rest.statuses.{Show, HomeTimeline}
 
 object RESTClientExampleApp extends App {
   val system = ActorSystem("RESTClientExampleApp")
@@ -42,8 +42,15 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
             .pipeTo(self)
 
         case Timeline(tweets) =>
-          tweets.map(println)
+          tweets.collectFirst { case t: Tweet =>
+            client.ask(Show(token, tokenSecret, t.id))
+              .mapTo[Tweet]
+              .pipeTo(self)
+          }
       }
+
+    case t: Tweet =>
+      println(t)
 
     case x => println("Received unexpected " + x)
   }
