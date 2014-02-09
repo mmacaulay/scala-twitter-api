@@ -7,6 +7,7 @@ import akka.actor.{Props, Actor, ActorSystem}
 import io.mca.twitter.rest.{Tweet, RESTClient}
 import akka.util.Timeout
 import io.mca.twitter.rest.statuses.{Show, HomeTimeline}
+import akka.actor.Status.Failure
 
 object RESTClientExampleApp extends App {
   val system = ActorSystem("RESTClientExampleApp")
@@ -36,21 +37,31 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
     case w: WorkerMessage =>
       w match {
         case Start =>
-          client.ask(HomeTimeline(token, tokenSecret))
-            .mapTo[Seq[Tweet]]
-            .map(Timeline)
-            .pipeTo(self)
+          client.ask(HomeTimeline(token, tokenSecret)).map {
+            case Right(tweets: Seq[Tweet]) =>
+              Timeline(tweets)
+            case Left(fail: Failure) =>
+              fail
+          }.pipeTo(self)
 
         case Timeline(tweets) =>
           tweets.collectFirst { case t: Tweet =>
-            client.ask(Show(token, tokenSecret, t.id))
-              .mapTo[Tweet]
-              .pipeTo(self)
+            client.ask(Show(token, tokenSecret, t.id)).map {
+              case Right(tweet: Tweet) =>
+                tweet
+              case Left(fail: Failure) =>
+                fail
+            }.pipeTo(self)
           }
       }
 
     case t: Tweet =>
+      println("Latest tweet:")
       println(t)
+
+    case Failure(cause) =>
+      println(cause.getMessage)
+      println(cause.getStackTraceString)
 
     case x => println("Received unexpected " + x)
   }

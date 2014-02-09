@@ -1,8 +1,5 @@
 package io.mca.twitter.rest
 
-import java.util.{ UUID, Date }
-
-import scala.Any
 import scala.concurrent.duration._
 import scala.concurrent._
 
@@ -12,43 +9,16 @@ import akka.actor._
 import akka.pattern.{ ask, pipe }
 
 import spray.http._
-import spray.json.DefaultJsonProtocol
 import spray.httpx.SprayJsonSupport._
-import spray.client.pipelining._
 import spray.httpx.encoding.{ Gzip, Deflate }
+import spray.httpx.unmarshalling._
 
 import io.mca.oauth._
+import spray.can.Http
+import io.mca.twitter.rest.statuses.{HomeTimeline, Show}
+import spray.http.HttpHeaders.{`Content-Encoding`, `Accept-Encoding`, RawHeader}
 
-trait RESTApiRequest {
-  val token: String
-  val tokenSecret: String
-  val httpMethod: String
-  val resource: String
-  val params: Seq[(String, String)]
 
-  def httpRequest: HttpRequest = {
-    val method = httpMethod match {
-      case "GET" => HttpMethods.GET
-      case "POST" => HttpMethods.POST
-      case _ => throw new Exception("Twitter API only supports GET and POST")
-    }
-    val uri = Uri(resource).withQuery(params: _*)
-    HttpRequest(method, uri)
-  }
-
-  def parameterize(p: Seq[(String, Option[Any])]): Seq[(String, String)] = {
-    p.flatMap { case(x, y) =>
-      y.map(yp => (x, yp.toString))
-    }
-  }
-}
-
-case class Tweet(id: Long, text: String, source: String, created_at: String, user: User)
-case class User(id: Long, screen_name: String, name: String)
-object TweetJsonProtocol extends DefaultJsonProtocol {
-  implicit val userFormat = jsonFormat3(User)
-  implicit val tweetFormat = jsonFormat5(Tweet)
-}
 
 object RESTClient {
   def apply(consumerKey: String, consumerSecret: String): Props = {
@@ -59,23 +29,45 @@ object RESTClient {
 class RESTClient(val consumerKey: String, val consumerSecret: String) extends Actor with OAuthClient {
   import TweetJsonProtocol._
   import context.dispatcher
-  implicit val timeout = Timeout(5.seconds)
 
-  def pipeline(authHeader: String): HttpRequest => Future[Seq[Tweet]] = {
-    (addHeader("Authorization", authHeader)
-      ~> encode(Gzip)
-      ~> sendReceive
-      ~> decode(Deflate)
-      ~> unmarshal[Seq[Tweet]]
-      )
-  }
+  implicit val timeout = Timeout(5.seconds)
 
   def receive = {
     case request: RESTApiRequest =>
-      val authHeader = oAuthHeader(request.httpMethod, request.resource, request.params, request.token, request.tokenSecret)
-      pipeline(authHeader)(request.httpRequest) pipeTo sender
+      makeRequest(request).map(response => unmarshal(request, response)).pipeTo(sender)
 
     case x => println("Unknown message: " + x)
+  }
+
+  def makeRequest(apiRequest: RESTApiRequest): Future[HttpResponse] = {
+    val authHeader = RawHeader("Authorization", oAuthHeader(apiRequest.httpMethod, apiRequest.resource,
+      apiRequest.params, apiRequest.token, apiRequest.tokenSecret))
+
+    val acceptHeader = `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate)
+    val request = apiRequest.httpRequest.withHeaders(List(authHeader, acceptHeader))
+
+    (IO(Http)(context.system) ? request).mapTo[HttpResponse].map(decode)
+  }
+
+  def decode(response: HttpResponse): HttpResponse = {
+    response.headers.find(_.lowercaseName == `Content-Encoding`.lowercaseName).map(_.value) match {
+      case Some(HttpEncodings.gzip.value) =>
+        Gzip.decode(response)
+      case Some(HttpEncodings.deflate.value) =>
+        Deflate.decode(response)
+      case x =>
+        println("Didn't match content encoding: " + x)
+        response
+    }
+  }
+
+  def unmarshal(request: RESTApiRequest, response: HttpResponse) = {
+    request match {
+      case homeTimeline: HomeTimeline =>
+        response.as[Seq[Tweet]]
+      case show: Show =>
+        response.as[Tweet]
+    }
   }
 }
 
