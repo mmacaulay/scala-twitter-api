@@ -17,7 +17,12 @@ import io.mca.oauth._
 import spray.can.Http
 import io.mca.twitter.rest.statuses.{HomeTimeline, Show}
 import spray.http.HttpHeaders.{`Content-Encoding`, `Accept-Encoding`, RawHeader}
-
+import spray.http.HttpHeaders.RawHeader
+import akka.actor.Status.Failure
+import spray.http.HttpResponse
+import io.mca.twitter.rest.statuses.HomeTimeline
+import spray.httpx.unmarshalling.UnsupportedContentType
+import io.mca.twitter.rest.statuses.Show
 
 
 object RESTClient {
@@ -62,11 +67,25 @@ class RESTClient(val consumerKey: String, val consumerSecret: String) extends Ac
   }
 
   def unmarshal(request: RESTApiRequest, response: HttpResponse) = {
-    request match {
+    val result = request match {
       case homeTimeline: HomeTimeline =>
         response.as[Seq[Tweet]]
       case show: Show =>
         response.as[Tweet]
+    }
+
+    result match {
+      case Right(success) =>
+        success
+      case Left(error) =>
+        error match {
+          case ContentExpected =>
+            Failure(new Exception("Content expected"))
+          case UnsupportedContentType(message) =>
+            Failure(new Exception(message))
+          case MalformedContent(message, cause) =>
+            Failure(new Exception(message, cause.getOrElse(null)))
+        }
     }
   }
 }

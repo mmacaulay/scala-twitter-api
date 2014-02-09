@@ -22,9 +22,7 @@ object RESTClientExampleApp extends App {
   worker ! Start
 }
 
-sealed trait WorkerMessage
-case object Start extends WorkerMessage
-case class Timeline(tweets: Seq[Tweet]) extends WorkerMessage
+case object Start
 
 class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSecret: String)
   extends Actor {
@@ -34,30 +32,17 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
   val client = context.actorOf(RESTClient(consumerKey, consumerSecret), name = "restclient")
 
   def receive = {
-    case w: WorkerMessage =>
-      w match {
-        case Start =>
-          client.ask(HomeTimeline(token, tokenSecret)).map {
-            case Right(tweets: Seq[Tweet]) =>
-              Timeline(tweets)
-            case Left(fail: Failure) =>
-              fail
-          }.pipeTo(self)
+    case Start =>
+      client.ask(HomeTimeline(token, tokenSecret)).mapTo[Seq[Tweet]].pipeTo(self)
 
-        case Timeline(tweets) =>
-          tweets.collectFirst { case t: Tweet =>
-            client.ask(Show(token, tokenSecret, t.id)).map {
-              case Right(tweet: Tweet) =>
-                tweet
-              case Left(fail: Failure) =>
-                fail
-            }.pipeTo(self)
-          }
+    case tweets: Seq[Tweet] =>
+      println(s"Got ${tweets.size} tweets")
+      tweets.headOption.map { t =>
+        client.ask(Show(token, tokenSecret, t.id)).mapTo[Tweet].pipeTo(self)
       }
 
     case t: Tweet =>
-      println("Latest tweet:")
-      println(t)
+      println(s"Latest tweet: $t")
 
     case Failure(cause) =>
       println(cause.getMessage)
