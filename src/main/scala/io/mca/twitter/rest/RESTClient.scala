@@ -32,15 +32,28 @@ object RESTClient {
   }
 }
 
+case class UnMarshalResponses(value: Boolean)
+
 class RESTClient(val consumerKey: String, val consumerSecret: String) extends Actor with OAuthClient {
   import TwitterJsonProtocol._
   import context.dispatcher
 
   implicit val timeout = Timeout(10.seconds)
 
+  var unMarshalResponses: Boolean = false
+
   def receive = {
     case request: RESTApiRequest =>
-      makeRequest(request).map(response => unmarshal(request, response)).pipeTo(sender)
+      makeRequest(request).map { response =>
+        if (unMarshalResponses) {
+          unmarshal(request, response)
+        } else {
+          response
+        }
+      }.pipeTo(sender)
+
+    case UnMarshalResponses(value) =>
+      unMarshalResponses = value
 
     case x => println("Unknown message: " + x)
   }
