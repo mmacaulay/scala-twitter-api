@@ -1,0 +1,73 @@
+package io.mca.twitter.rest.platform_objects
+
+// This representation of a user object is missing a few fields due to
+// Scala's constraint on case classes having more than 22 parameters.
+case class User(
+                created_at: String,
+                default_profile: Boolean,
+                default_profile_image: Boolean,
+                description: Option[String],
+                entities: Entities,
+                favourites_count: Long, // Note the British/Canadian spelling here.
+                followers_count: Long,
+                friends_count: Long,
+                geo_enabled: Boolean,
+                id_str: String,
+                lang: String,
+                listed_count: Long,
+                location: String,
+                name: String,
+                `protected`: Boolean,
+                screen_name: String,
+                status: Option[Tweet],
+                statuses_count: Long,
+                time_zone: Option[String],
+                url: Option[String],
+                utc_offset: Option[Long],
+                verified: Boolean)
+
+// Awaiting scala 2.11 for case classes with more than 22 parameters.
+/*case*/ class UserFull(
+                 contributors_enabled: Boolean,
+                 created_at: String,
+                 default_profile: Boolean,
+                 default_profile_image: Boolean,
+                 description: Option[String],
+                 entities: Entities,
+                 favourites_count: Long,
+                 follow_request_sent: Option[Boolean],
+                 following: Option[Boolean], // deprecated
+                 followers_count: Long,
+                 friends_count: Long,
+                 geo_enabled: Boolean,
+                 id: Long,
+                 id_str: String,
+                 is_translator: Boolean,
+                 lang: String,
+                 listed_count: Long,
+                 location: String,
+                 name: String,
+                 notifications: Option[Boolean], // deprecated
+                 profile_background_color: String,
+                 profile_background_image_url: String,
+                 profile_background_image_url_https: String,
+                 profile_background_tile: Boolean,
+                 profile_banner_url: String,
+                 profile_image_url: String,
+                 profile_image_url_https: String,
+                 profile_link_color: String,
+                 profile_sidebar_border_color: String,
+                 profile_sidebar_fill_color: String,
+                 profile_text_color: String,
+                 profile_use_background_image: Boolean,
+                 `protected`: Boolean,
+                 screen_name: String,
+                 show_all_inline_media: Boolean,
+                 status: Option[Tweet],
+                 statuses_count: Long,
+                 time_zone: Option[String],
+                 url: Option[String],
+                 utc_offset: Option[Long],
+                 verified: Boolean,
+                 withheld_in_countries: Option[String],
+                 withheld_scope: Option[String])

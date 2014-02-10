@@ -4,10 +4,11 @@ import scala.concurrent.duration._
 
 import akka.pattern.{ ask, pipe }
 import akka.actor.{Props, Actor, ActorSystem}
-import io.mca.twitter.rest.{Tweet, RESTClient}
+import io.mca.twitter.rest.RESTClient
 import akka.util.Timeout
 import io.mca.twitter.rest.statuses.{Show, HomeTimeline}
 import akka.actor.Status.Failure
+import io.mca.twitter.rest.platform_objects.Tweet
 
 object RESTClientExampleApp extends App {
   val system = ActorSystem("RESTClientExampleApp")
@@ -27,7 +28,7 @@ case object Start
 class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSecret: String)
   extends Actor {
   import context.dispatcher
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(10.seconds)
 
   val client = context.actorOf(RESTClient(consumerKey, consumerSecret), name = "restclient")
 
@@ -38,7 +39,7 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
     case tweets: Seq[Tweet] =>
       println(s"Got ${tweets.size} tweets")
       tweets.headOption.map { t =>
-        client.ask(Show(token, tokenSecret, t.id)).mapTo[Tweet].pipeTo(self)
+        client.ask(Show(token, tokenSecret, t.id_str)).mapTo[Tweet].pipeTo(self)
       }
 
     case t: Tweet =>

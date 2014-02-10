@@ -3,7 +3,7 @@ package io.mca.twitter.rest.statuses
 import io.mca.twitter.rest.RESTApiRequest
 
 // https://dev.twitter.com/docs/api/1.1/get/statuses/show/%3Aid
-case class Show(token: String, tokenSecret: String, id: Long, trimUser: Option[Boolean] = None,
+case class Show(token: String, tokenSecret: String, id: String, trimUser: Option[Boolean] = None,
                  includeMyRetweet: Option[Boolean] = None, includeEntities: Option[Boolean] = None)
   extends RESTApiRequest {
 

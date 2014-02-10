@@ -7,22 +7,23 @@ import akka.io.IO
 import akka.util.Timeout
 import akka.actor._
 import akka.pattern.{ ask, pipe }
+import akka.actor.Status.Failure
 
+import spray.can.Http
 import spray.http._
 import spray.httpx.SprayJsonSupport._
 import spray.httpx.encoding.{ Gzip, Deflate }
 import spray.httpx.unmarshalling._
-
-import io.mca.oauth._
-import spray.can.Http
-import io.mca.twitter.rest.statuses.{HomeTimeline, Show}
 import spray.http.HttpHeaders.{`Content-Encoding`, `Accept-Encoding`, RawHeader}
 import spray.http.HttpHeaders.RawHeader
-import akka.actor.Status.Failure
 import spray.http.HttpResponse
-import io.mca.twitter.rest.statuses.HomeTimeline
 import spray.httpx.unmarshalling.UnsupportedContentType
-import io.mca.twitter.rest.statuses.Show
+
+import io.mca.oauth._
+import statuses.{HomeTimeline, Show}
+import statuses.HomeTimeline
+import statuses.Show
+import io.mca.twitter.rest.platform_objects.{TwitterJsonProtocol, Tweet}
 
 
 object RESTClient {
@@ -32,10 +33,10 @@ object RESTClient {
 }
 
 class RESTClient(val consumerKey: String, val consumerSecret: String) extends Actor with OAuthClient {
-  import TweetJsonProtocol._
+  import TwitterJsonProtocol._
   import context.dispatcher
 
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(10.seconds)
 
   def receive = {
     case request: RESTApiRequest =>
