@@ -4,11 +4,12 @@ import scala.concurrent.duration._
 
 import akka.pattern.{ ask, pipe }
 import akka.actor.{Props, Actor, ActorSystem}
-import io.mca.twitter.rest.RESTClient
+import io.mca.twitter.rest.{TokenResponse, TokenRequest, RESTClient}
 import akka.util.Timeout
 import io.mca.twitter.rest.statuses.{Show, HomeTimeline}
 import akka.actor.Status.Failure
 import io.mca.twitter.rest.platform_objects.Tweet
+import spray.http.HttpResponse
 
 object RESTClientExampleApp extends App {
   val system = ActorSystem("RESTClientExampleApp")
@@ -34,7 +35,7 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
 
   def receive = {
     case Start =>
-      client.ask(HomeTimeline(token, tokenSecret)).mapTo[Seq[Tweet]].pipeTo(self)
+      client.ask(TokenRequest()).mapTo[TokenResponse.Result].pipeTo(self)
 
     case tweets: Seq[Tweet] =>
       println(s"Got ${tweets.size} tweets")
@@ -44,6 +45,15 @@ class Worker(consumerKey: String, consumerSecret: String, token: String, tokenSe
 
     case t: Tweet =>
       println(s"Latest tweet: $t")
+
+    case TokenResponse.Success(newToken, newTokenSecret, _) =>
+      // new token has not been approved yet...
+      client.ask(HomeTimeline(token, tokenSecret)).mapTo[Seq[Tweet]].pipeTo(self)
+
+    case TokenResponse.Fail(response) =>
+      println(s"Token request failed: $response")
+    case response: HttpResponse =>
+      println(s"Received HTTP Response $response")
 
     case Failure(cause) =>
       println(cause.getMessage)

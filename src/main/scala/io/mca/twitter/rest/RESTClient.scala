@@ -43,8 +43,33 @@ class RESTClient(val consumerKey: String, val consumerSecret: String) extends Ac
   var unMarshalResponses: Boolean = false
 
   def receive = {
+    case request: TokenRequest =>
+      val tokenHeader = tokenRequestHeader(request.httpMethod, request.baseUri, request.callback)
+      makeRequest(request.httpRequest, tokenHeader).map { response =>
+        response.status match {
+          case StatusCodes.OK =>
+            val params: Map[String, String] = response
+                .entity
+                .asString(HttpCharsets.`UTF-8`)
+                .split('&')
+                .map { p =>
+              p.split('=') match {
+                case Array(key: String, value: String, _*) => (key, value)
+              }
+            }.toMap
+
+            val token = params("oauth_token")
+            val tokenSecret = params("oauth_token_secret")
+            Right(TokenResponse.Success(token, tokenSecret, response))
+          case _ =>
+            Left(TokenResponse.Fail(response))
+        }
+      }.pipeTo(sender)
+
     case request: RESTApiRequest =>
-      makeRequest(request).map { response =>
+      val authHeader = resourceHeader(request.httpMethod, request.resource,
+        request.params, request.token, request.tokenSecret)
+      makeRequest(request.httpRequest, authHeader).map { response =>
         if (unMarshalResponses) {
           unmarshal(request, response)
         } else {
@@ -58,14 +83,13 @@ class RESTClient(val consumerKey: String, val consumerSecret: String) extends Ac
     case x => println("Unknown message: " + x)
   }
 
-  def makeRequest(apiRequest: RESTApiRequest): Future[HttpResponse] = {
-    val authHeader = RawHeader("Authorization", oAuthHeader(apiRequest.httpMethod, apiRequest.resource,
-      apiRequest.params, apiRequest.token, apiRequest.tokenSecret))
+  def makeRequest(request: HttpRequest, authorization: String): Future[HttpResponse] = {
+    val authHeader = RawHeader("Authorization", authorization)
 
     val acceptHeader = `Accept-Encoding`(HttpEncodings.gzip, HttpEncodings.deflate)
-    val request = apiRequest.httpRequest.withHeaders(List(authHeader, acceptHeader))
+    val finalRequest = request.withHeaders(List(authHeader, acceptHeader))
 
-    (IO(Http)(context.system) ? request).mapTo[HttpResponse].map(decode)
+    (IO(Http)(context.system) ? finalRequest).mapTo[HttpResponse].map(decode)
   }
 
   def decode(response: HttpResponse): HttpResponse = {
